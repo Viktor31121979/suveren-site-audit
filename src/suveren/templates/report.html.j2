@@ -1,0 +1,106 @@
+{% extends "base.html.j2" %}
+{% block title %}Suveren — {{ report.target }}{% endblock %}
+{% block content %}
+  <header class="top">
+    <span class="brand">Suveren · редакция Виктора</span>
+    <span class="meta">
+      {{ report.started_at.strftime("%d.%m.%Y %H:%M UTC") }} · {{ "%.1f" | format(report.duration) }} с
+    </span>
+  </header>
+  <h1>{{ report.target }}</h1>
+
+  <section class="card summary">
+    <div class="grade grade-{{ report.grade }}">{{ report.grade }}</div>
+    <div>
+      <div class="score"><strong>{{ report.score }}</strong> / 100 — независимость от иностранных сервисов</div>
+      <div class="counts">
+        Иностранных сервисов: <b>{{ report.foreign_count }}</b> · российских: <b>{{ report.domestic_count }}</b>
+      </div>
+      {% if bars %}
+      <div class="bar">
+        {% for b in bars %}<span style="width: {{ b.share }}%; background: {{ b.color }}" title="{{ b.name }} {{ b.share }}%"></span>{% endfor %}
+      </div>
+      <div class="legend">
+        {% for b in bars %}<span><i style="background: {{ b.color }}"></i>{{ b.name }} {{ b.share }}%</span>{% endfor %}
+      </div>
+      {% endif %}
+    </div>
+  </section>
+
+  {% if actions %}
+  <h2>Что сделать в первую очередь</h2>
+  <ol class="card actions">
+    {% for a in actions %}
+    <li class="sev-{{ a.severity.label }}"><span>{{ a.action }}</span><small>{{ a.reason }}</small></li>
+    {% endfor %}
+  </ol>
+  {% endif %}
+
+  {% if report.notes %}
+  <h2>Замечания</h2>
+  {% for note in report.notes %}
+  <p class="card note">{{ note }}</p>
+  {% endfor %}
+  {% endif %}
+
+  <h2>Риски</h2>
+  {% for f in report.sorted_findings() %}
+  <article class="card finding sev-{{ f.severity.label }}">
+    <div class="head">
+      <span class="badge"><span>{{ f.severity.ru }}</span></span>
+      <h3>{{ f.title }}</h3>
+    </div>
+    <p>{{ f.description }}</p>
+    <p class="fix">{{ f.recommendation }}</p>
+  </article>
+  {% else %}
+  <p class="empty">Иностранных зависимостей не найдено.</p>
+  {% endfor %}
+
+  {% for group, items in report.check_groups %}
+  <h2 id="checks-{{ loop.index }}">{{ group }}</h2>
+  {% if group.startswith("Персональные") %}<p class="muted-note">Автоматическая проверка по признакам на страницах сайта. Она указывает на возможные проблемы и не заменяет юридическую оценку.</p>{% endif %}
+  <div class="card checks">
+    {% for c in items %}
+    <div class="check">
+      <span class="icon st-{{ c.status.value }}" title="{{ c.status.ru }}"><span>{{ c.status.icon }}</span></span>
+      <h3>{{ c.title }}</h3>
+      {% if c.details %}<p>{{ c.details }}{% if c.link %} <a href="{{ c.link }}" target="_blank" rel="noopener">открыть</a>{% endif %}</p>{% endif %}
+      {% if c.recommendation and c.status.value != "ok" %}<p class="fix">{{ c.recommendation }}</p>{% endif %}
+      {% if c.law %}<p class="law">Основание: {% if c.law_url %}<a href="{{ c.law_url }}" target="_blank" rel="noopener">{{ c.law }}</a>{% else %}{{ c.law }}{% endif %}</p>{% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% endfor %}
+
+  <h2>Все найденные сервисы</h2>
+  <div class="card table-wrap">
+    <table>
+      <thead><tr><th>Сервис</th><th>Страна</th><th>Где найдено</th><th>Риск</th></tr></thead>
+      <tbody>
+      {% for category, deps in groups %}
+        <tr class="group"><td colspan="4">{{ category.title }}</td></tr>
+        {% for d in deps %}
+        <tr>
+          <td>{{ d.service }}</td>
+          <td>{{ d.country_ru }}</td>
+          <td class="evidence">{{ d.evidence }}</td>
+          <td>
+            {% if d.foreign %}<span class="badge sev-{{ d.severity.label }}"><span>{{ d.severity.ru }}</span></span>
+            {% elif d.foreign is sameas false %}<span class="badge sev-ok"><span>РФ</span></span>
+            {% else %}<span class="empty">—</span>{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <footer>
+    Отчёт создан Suveren v{{ version }}. Проверка пассивная: публичные DNS-записи, WHOIS,
+    SSL-сертификат, код главной страницы и открытые реестры. Страна сервиса — юрисдикция компании-владельца.
+    Оценка помогает расставить приоритеты и не является юридическим заключением.
+    Помощь с разбором отчёта: <a href="https://viktor-timonin.ru/" target="_blank" rel="noopener noreferrer">Виктор Тимонин</a>.
+  </footer>
+{% endblock %}
